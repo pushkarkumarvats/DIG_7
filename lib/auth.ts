@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { validateDemoUser, isDemoMode } from '@/lib/demo-auth'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -26,6 +27,21 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid credentials')
         }
 
+        // Try demo mode first (works without database)
+        if (isDemoMode()) {
+          const demoUser = validateDemoUser(credentials.email, credentials.password)
+          if (demoUser) {
+            console.log('✅ Demo mode: User authenticated:', demoUser.email)
+            return {
+              id: demoUser.id,
+              email: demoUser.email,
+              name: demoUser.name,
+              role: demoUser.role,
+            }
+          }
+        }
+
+        // Try database authentication
         try {
           const user = await prisma.user.findUnique({
             where: {

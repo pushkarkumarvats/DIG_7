@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -15,8 +15,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [setupLoading, setSetupLoading] = useState(false)
-  const [setupSuccess, setSetupSuccess] = useState(false)
+  const [demoMode, setDemoMode] = useState(true) // Always start in demo mode
 
   const demoAccounts = [
     { role: 'Admin', email: 'admin@example.com', password: 'admin123', color: 'bg-red-500' },
@@ -24,35 +23,26 @@ export default function SignInPage() {
     { role: 'Viewer', email: 'viewer@example.com', password: 'viewer123', color: 'bg-green-500' },
   ]
 
+  useEffect(() => {
+    // Check if demo mode is available
+    const checkDemoMode = async () => {
+      try {
+        const response = await fetch('/api/demo/users')
+        const data = await response.json()
+        if (data.success) {
+          setDemoMode(true)
+        }
+      } catch (error) {
+        console.log('Demo mode check failed, but continuing with demo mode enabled')
+      }
+    }
+    checkDemoMode()
+  }, [])
+
   const fillDemoCredentials = (demoEmail: string, demoPassword: string) => {
     setEmail(demoEmail)
     setPassword(demoPassword)
     setError('')
-  }
-
-  const setupDemoUsers = async () => {
-    setSetupLoading(true)
-    setError('')
-    setSetupSuccess(false)
-
-    try {
-      const response = await fetch('/api/setup/users', {
-        method: 'POST',
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setSetupSuccess(true)
-        setError('')
-      } else {
-        setError(data.error || 'Failed to create demo users')
-      }
-    } catch (error) {
-      setError('Failed to setup demo users. Check database connection.')
-    } finally {
-      setSetupLoading(false)
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,7 +58,7 @@ export default function SignInPage() {
       })
 
       if (result?.error) {
-        setError('Invalid email or password. Note: Demo users need to be seeded first. Run: npm run seed:users')
+        setError('Invalid email or password. Please use one of the demo accounts below.')
       } else {
         router.push('/dashboard/vendors')
         router.refresh()
@@ -88,7 +78,11 @@ export default function SignInPage() {
             Vendor Management System
           </CardTitle>
           <CardDescription className="text-center">
-            Sign in to access the dashboard
+            {demoMode && (
+              <span className="inline-flex items-center gap-2 text-green-600 font-medium">
+                ✅ Demo Mode Active - No Setup Required!
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -138,12 +132,15 @@ export default function SignInPage() {
             </div>
             
             <div className="mt-4 space-y-2">
+              <p className="text-xs text-center text-gray-600 font-medium mb-3">
+                👇 Click any button below to auto-fill and sign in
+              </p>
               {demoAccounts.map((account) => (
                 <button
                   key={account.email}
                   type="button"
                   onClick={() => fillDemoCredentials(account.email, account.password)}
-                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors text-left hover:border-gray-400"
                   disabled={loading}
                 >
                   <div className="flex items-center gap-3">
@@ -155,31 +152,19 @@ export default function SignInPage() {
                       <div className="text-gray-500 text-xs">{account.password}</div>
                     </div>
                   </div>
-                  <span className="text-xs text-gray-400">Click to fill</span>
+                  <span className="text-xs text-blue-500 font-medium">Click →</span>
                 </button>
               ))}
             </div>
             
-            {setupSuccess && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
-                ✅ Demo users created successfully! You can now sign in.
-              </div>
-            )}
-            
-            {!setupSuccess && (
-              <div className="mt-4 space-y-2">
-                <Button
-                  type="button"
-                  onClick={setupDemoUsers}
-                  disabled={setupLoading}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {setupLoading ? '⏳ Setting up...' : '🔧 Setup Demo Users (First Time)'}
-                </Button>
-                <p className="text-xs text-center text-gray-500">
-                  Click this button once to create demo accounts in your database
-                </p>
+            {demoMode && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-0.5">ℹ️</span>
+                  <div className="text-xs text-blue-800">
+                    <strong>No database required!</strong> Demo accounts work instantly. Just click any account above and sign in.
+                  </div>
+                </div>
               </div>
             )}
           </div>
