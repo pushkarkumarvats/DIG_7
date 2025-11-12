@@ -11,9 +11,17 @@ export default withAuth(
       return NextResponse.next()
     }
 
+    // Allow public access in demo mode (for showcase without database)
+    const isDemoMode = process.env.DEMO_MODE === 'true'
+
     // Protect API routes
     if (path.startsWith('/api/')) {
-      if (!token) {
+      // Skip auth routes
+      if (path.startsWith('/api/auth')) {
+        return NextResponse.next()
+      }
+
+      if (!token && !isDemoMode) {
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
@@ -21,13 +29,14 @@ export default withAuth(
       }
 
       // Role-based access control for sensitive operations
-      const role = token.role as string
+      const role = token?.role as string
 
       // Only ADMIN and MANAGER can create/update/delete vendors
       if (
-        (path.includes('/api/vendors') && req.method !== 'GET') ||
+        token &&
+        ((path.includes('/api/vendors') && req.method !== 'GET') ||
         path.includes('/api/vendors/score') ||
-        path.includes('/api/vendors/scrape')
+        path.includes('/api/vendors/scrape'))
       ) {
         if (role !== 'ADMIN' && role !== 'MANAGER') {
           return NextResponse.json(
@@ -38,7 +47,7 @@ export default withAuth(
       }
 
       // Only ADMIN can access audit logs
-      if (path.includes('/api/audit-logs') && role !== 'ADMIN') {
+      if (token && path.includes('/api/audit-logs') && role !== 'ADMIN') {
         return NextResponse.json(
           { error: 'Admin access required' },
           { status: 403 }
@@ -48,7 +57,9 @@ export default withAuth(
 
     // Protect dashboard routes
     if (path.startsWith('/dashboard')) {
-      if (!token) {
+      const isDemoMode = process.env.DEMO_MODE === 'true'
+      
+      if (!token && !isDemoMode) {
         return NextResponse.redirect(new URL('/auth/signin', req.url))
       }
     }
@@ -57,7 +68,13 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token }) => {
+        // Allow access in demo mode
+        if (process.env.DEMO_MODE === 'true') {
+          return true
+        }
+        return !!token
+      },
     },
   }
 )
