@@ -6,13 +6,16 @@ export default withAuth(
     const token = req.nextauth.token
     const path = req.nextUrl.pathname
 
+    // Demo mode: allow all access without authentication
+    const isDemoMode = process.env.DEMO_MODE === 'true'
+    if (isDemoMode) {
+      return NextResponse.next()
+    }
+
     // Allow public access to auth pages
     if (path.startsWith('/auth/')) {
       return NextResponse.next()
     }
-
-    // Allow public access in demo mode (for showcase without database)
-    const isDemoMode = process.env.DEMO_MODE === 'true'
 
     // Protect API routes
     if (path.startsWith('/api/')) {
@@ -21,7 +24,7 @@ export default withAuth(
         return NextResponse.next()
       }
 
-      if (!token && !isDemoMode) {
+      if (!token) {
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
@@ -57,9 +60,7 @@ export default withAuth(
 
     // Protect dashboard routes
     if (path.startsWith('/dashboard')) {
-      const isDemoMode = process.env.DEMO_MODE === 'true'
-      
-      if (!token && !isDemoMode) {
+      if (!token) {
         return NextResponse.redirect(new URL('/auth/signin', req.url))
       }
     }

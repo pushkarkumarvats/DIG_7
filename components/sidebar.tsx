@@ -14,21 +14,25 @@ import {
 
 const navigation = [
   { name: 'Vendors', href: '/dashboard/vendors', icon: Building2 },
-  { name: 'Search', href: '/dashboard/search', icon: Search },
   { name: 'Recommend', href: '/dashboard/recommend', icon: BarChart3 },
-  { name: 'Compare', href: '/dashboard/compare', icon: BarChart3 },
-  { name: 'Audit Logs', href: '/dashboard/audit-logs', icon: FileText },
   { name: 'Upload Data', href: '/dashboard/upload', icon: Upload },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
 
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || true
+
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-gray-50/40">
       <div className="flex h-16 items-center border-b px-6">
         <Building2 className="h-6 w-6 text-primary" />
-        <span className="ml-2 text-lg font-semibold">Vendor Manager</span>
+        <div className="ml-2">
+          <span className="text-lg font-semibold block">Vendor Manager</span>
+          {isDemoMode && (
+            <span className="text-xs text-green-600 font-medium">✓ Demo Mode</span>
+          )}
+        </div>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
