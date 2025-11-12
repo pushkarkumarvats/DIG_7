@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { mockVendors } from '@/lib/mock-data'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
+  // Demo mode: return mock vendor
+  const isDemoMode = process.env.DEMO_MODE === 'true'
+  if (isDemoMode) {
+    const vendor = mockVendors.find(v => v.id === id)
+    if (!vendor) {
+      return NextResponse.json(
+        { error: 'Vendor not found' },
+        { status: 404 }
+      )
+    }
+    return NextResponse.json(vendor)
+  }
+
+  // Database mode
   try {
-    const { id } = await params
     const vendor = await prisma.vendor.findUnique({
       where: { id },
       include: {
@@ -60,10 +76,21 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  const body = await request.json()
+  
+  // Demo mode: return mock success
+  const isDemoMode = process.env.DEMO_MODE === 'true'
+  if (isDemoMode) {
+    return NextResponse.json({
+      id,
+      ...body,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
+  // Database mode
   try {
-    const { id } = await params
-    const body = await request.json()
-    
     const vendor = await prisma.vendor.update({
       where: { id },
       data: body,
@@ -83,8 +110,16 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
+  // Demo mode: return mock success
+  const isDemoMode = process.env.DEMO_MODE === 'true'
+  if (isDemoMode) {
+    return NextResponse.json({ success: true, message: 'Vendor deleted (demo mode)' })
+  }
+
+  // Database mode
   try {
-    const { id } = await params
     await prisma.vendor.delete({
       where: { id },
     })
