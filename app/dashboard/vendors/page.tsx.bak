@@ -1,0 +1,241 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Search, Plus, ExternalLink } from 'lucide-react'
+import { getRiskColor, getScoreBadgeColor, formatPercentage } from '@/lib/utils'
+
+interface Vendor {
+  id: string
+  name: string
+  industry: string | null
+  status: string
+  isVerified: boolean
+  scores: Array<{
+    totalScore: number
+    reliabilityScore: number
+    riskScore: number
+  }>
+  risks: Array<{
+    riskLevel: string
+  }>
+}
+
+export default function VendorsPage() {
+  const [vendors, setVendors] = useState<Vendor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    fetchVendors()
+  }, [])
+
+  const fetchVendors = async () => {
+    try {
+      const response = await fetch(`/api/vendors?query=${search}&limit=20`)
+      const data = await response.json()
+      setVendors(data.vendors)
+    } catch (error) {
+      console.error('Error fetching vendors:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = () => {
+    fetchVendors()
+  }
+
+  return (
+    <div className="p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Vendor Management</h1>
+        <p className="text-gray-600 mt-2">
+          Manage and evaluate your vendor relationships
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total Vendors
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{vendors.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Active Vendors
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {vendors.filter((v) => v.status === 'ACTIVE').length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              High Risk
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-red-600">
+              {vendors.filter((v) => v.risks.some((r) => r.riskLevel === 'HIGH')).length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Top Rated
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-600">
+              {vendors.filter((v) => v.scores[0]?.totalScore >= 85).length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Actions */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search vendors by name or industry..."
+                className="pl-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <Button onClick={handleSearch}>Search</Button>
+            <Button variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Vendor
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Vendors Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Vendors</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">Loading vendors...</div>
+          ) : vendors.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No vendors found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Industry</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Risk Level</TableHead>
+                  <TableHead>Reliability</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vendors.map((vendor) => {
+                  const latestScore = vendor.scores[0]
+                  const highestRisk = vendor.risks[0]
+
+                  return (
+                    <TableRow key={vendor.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {vendor.name}
+                          {vendor.isVerified && (
+                            <Badge variant="secondary" className="text-xs">
+                              Verified
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{vendor.industry || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            vendor.status === 'ACTIVE' ? 'default' : 'secondary'
+                          }
+                        >
+                          {vendor.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {latestScore ? (
+                          <span
+                            className={`font-semibold ${getScoreBadgeColor(
+                              latestScore.totalScore
+                            )}`}
+                          >
+                            {formatPercentage(latestScore.totalScore)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">Not scored</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {highestRisk ? (
+                          <Badge className={getRiskColor(highestRisk.riskLevel)}>
+                            {highestRisk.riskLevel}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-green-50 text-green-600">
+                            LOW
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {latestScore
+                          ? formatPercentage(latestScore.reliabilityScore)
+                          : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/dashboard/vendor/${vendor.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

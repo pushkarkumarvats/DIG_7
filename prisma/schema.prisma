@@ -1,0 +1,270 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      UserRole @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  name        String
+  website     String?
+  description String?
+  email       String?
+  phone       String?
+  address     String?
+  companySize String?
+  industry    String?
+  founded     String?
+  
+  // Business identifiers
+  taxId       String?
+  
+  // Status
+  status      VendorStatus @default(ACTIVE)
+  isVerified  Boolean      @default(false)
+  
+  // Metadata
+  logoUrl     String?
+  linkedinUrl String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  externalReviews  ExternalReview[]
+  internalRecords  InternalRecord[]
+  features         VendorFeature[]
+  scores           VendorScore[]
+  risks            VendorRisk[]
+  auditLogs        AuditLog[]
+
+  @@index([name])
+  @@index([status])
+  @@index([industry])
+  @@map("vendors")
+}
+
+enum VendorStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING
+}
+
+model ExternalReview {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  source    String   // e.g., "Google", "Trustpilot", "G2", "Clutch"
+  rating    Float
+  reviewCount Int?
+  reviewText String?
+  sentiment String?  // "positive", "negative", "neutral"
+  
+  // Extracted data
+  keywords  String[] // Array of keywords
+  certifications String[] // ISO, SOC2, etc.
+  
+  scrapedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([vendorId])
+  @@index([source])
+  @@map("external_reviews")
+}
+
+model InternalRecord {
+  id                String   @id @default(cuid())
+  vendorId          String
+  vendor            Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  projectName       String
+  projectCategory   String   // e.g., "IT Services", "Marketing", "Logistics"
+  contractValue     Float
+  startDate         DateTime
+  endDate           DateTime?
+  
+  // Performance metrics
+  deliverySuccessRate Float  // 0-100
+  qualityScore        Float  // 0-100
+  costEfficiency      Float  // 0-100
+  responseTime        Float? // in hours
+  
+  // Compliance
+  complianceScore     Float  // 0-100
+  incidentCount       Int    @default(0)
+  
+  // Notes
+  notes               String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([projectCategory])
+  @@map("internal_records")
+}
+
+model VendorFeature {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  // Capability features
+  services         String[] // List of services offered
+  technologies     String[] // Tech stack
+  certifications   String[]
+  languages        String[] // Languages supported
+  regions          String[] // Geographic coverage
+  
+  // Capacity
+  teamSize         Int?
+  yearsInBusiness  Int?
+  clientCount      Int?
+  
+  // Specializations
+  industries       String[]
+  expertiseAreas   String[]
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([vendorId])
+  @@map("vendor_features")
+}
+
+model VendorScore {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  // Overall score
+  totalScore          Float  // 0-100
+  
+  // Component scores
+  reliabilityScore    Float  // 0-100
+  costScore           Float  // 0-100
+  capabilityScore     Float  // 0-100
+  performanceScore    Float  // 0-100
+  reputationScore     Float  // 0-100
+  riskScore           Float  // 0-100 (lower is better)
+  
+  // ML-based scores
+  mlPredictionScore   Float?
+  embeddingScore      Float?
+  
+  // Explainability
+  scoreBreakdown      Json?  // Detailed breakdown
+  rankingFactors      Json?  // Key factors influencing rank
+  
+  // Metadata
+  modelVersion        String?
+  computedAt          DateTime @default(now())
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([totalScore])
+  @@map("vendor_scores")
+}
+
+model VendorRisk {
+  id          String     @id @default(cuid())
+  vendorId    String
+  vendor      Vendor     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  riskLevel   RiskLevel  // HIGH, MEDIUM, LOW
+  riskCategory String    // e.g., "Financial", "Compliance", "Reputation", "Operational"
+  
+  description String
+  severity    Int        // 1-10
+  probability Float      // 0-1
+  impact      Float      // 0-100
+  
+  // Risk indicators
+  indicators  Json       // Specific flags that triggered the risk
+  
+  // Mitigation
+  mitigation  String?
+  status      RiskStatus @default(ACTIVE)
+  
+  detectedAt  DateTime   @default(now())
+  resolvedAt  DateTime?
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([vendorId])
+  @@index([riskLevel])
+  @@index([status])
+  @@map("vendor_risks")
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  ACTIVE
+  MONITORING
+  MITIGATED
+  RESOLVED
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  vendorId    String?
+  vendor      Vendor?  @relation(fields: [vendorId], references: [id])
+  
+  action      String   // e.g., "VENDOR_VIEWED", "SCORE_COMPUTED", "RECOMMENDATION_GENERATED"
+  entity      String   // e.g., "Vendor", "Score", "Risk"
+  entityId    String?
+  
+  details     Json?    // Additional details about the action
+  
+  ipAddress   String?
+  userAgent   String?
+  
+  timestamp   DateTime @default(now())
+
+  @@index([userId])
+  @@index([vendorId])
+  @@index([timestamp])
+  @@index([action])
+  @@map("audit_logs")
+}
