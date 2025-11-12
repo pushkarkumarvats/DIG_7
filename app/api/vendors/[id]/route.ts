@@ -11,7 +11,7 @@ export async function GET(
   // Demo mode: return mock vendor
   const isDemoMode = process.env.DEMO_MODE === 'true'
   if (isDemoMode) {
-    const vendor = mockVendors.find(v => v.id === id)
+    const vendor = mockVendors.find(v => v.id === parseInt(id))
     if (!vendor) {
       return NextResponse.json(
         { error: 'Vendor not found' },
@@ -82,11 +82,16 @@ export async function PATCH(
   // Demo mode: return mock success
   const isDemoMode = process.env.DEMO_MODE === 'true'
   if (isDemoMode) {
-    return NextResponse.json({
-      id,
-      ...body,
-      updatedAt: new Date().toISOString(),
-    })
+    const vendorIndex = mockVendors.findIndex(v => v.id === parseInt(id))
+    if (vendorIndex !== -1) {
+      const vendor = mockVendors[vendorIndex]
+      return NextResponse.json({
+        id,
+        ...body,
+        updatedAt: new Date().toISOString(),
+      })
+    }
+    return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
   }
 
   // Database mode
@@ -115,7 +120,12 @@ export async function DELETE(
   // Demo mode: return mock success
   const isDemoMode = process.env.DEMO_MODE === 'true'
   if (isDemoMode) {
-    return NextResponse.json({ success: true, message: 'Vendor deleted (demo mode)' })
+    const vendorIndex = mockVendors.findIndex(v => v.id === parseInt(id))
+    if (vendorIndex !== -1) {
+      mockVendors.splice(vendorIndex, 1)
+      return NextResponse.json({ success: true, message: 'Vendor deleted (demo mode)' })
+    }
+    return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
   }
 
   // Database mode
