@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         riskLevel: v.vendor.risks[0]?.riskLevel || 'LOW',
         estimatedCost: estimateCost(v.vendor),
         strengths: extractStrengths(v.vendor),
-        certifications: v.vendor.features?.certifications || [],
+        certifications: v.vendor.features?.[0]?.certifications || [],
       })),
       comparisonMatrix: generateComparisonMatrix(filteredVendors),
     }

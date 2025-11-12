@@ -59,7 +59,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate explainability data
-    const explainability = {
+    const explainability: {
+      strengths: string[]
+      weaknesses: string[]
+      recommendations: string[]
+    } = {
       strengths: [],
       weaknesses: [],
       recommendations: [],

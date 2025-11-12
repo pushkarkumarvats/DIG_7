@@ -7,13 +7,13 @@ interface VendorData {
   }>
   externalReviews: Array<{
     rating: number
-    sentiment: string
+    sentiment: string | null
   }>
-  features: {
+  features: Array<{
     certifications: string[]
     yearsInBusiness: number | null
     teamSize: number | null
-  } | null
+  }>
   risks: Array<{
     riskLevel: string
     severity: number
@@ -104,24 +104,26 @@ function calculateCostScore(records: VendorData['internalRecords']): number {
 }
 
 function calculateCapabilityScore(features: VendorData['features']): number {
-  if (!features) return 50
+  if (!features || features.length === 0) return 50
 
+  // Use the first feature record (or aggregate if multiple)
+  const feature = features[0]
   let score = 50
 
   // Certifications boost
-  const certCount = features.certifications?.length || 0
+  const certCount = feature.certifications?.length || 0
   score += Math.min(certCount * 5, 20)
 
   // Years in business boost
-  if (features.yearsInBusiness) {
-    score += Math.min(features.yearsInBusiness * 2, 20)
+  if (feature.yearsInBusiness) {
+    score += Math.min(feature.yearsInBusiness * 2, 20)
   }
 
   // Team size boost
-  if (features.teamSize) {
-    if (features.teamSize > 100) score += 10
-    else if (features.teamSize > 50) score += 7
-    else if (features.teamSize > 20) score += 5
+  if (feature.teamSize) {
+    if (feature.teamSize > 100) score += 10
+    else if (feature.teamSize > 50) score += 7
+    else if (feature.teamSize > 20) score += 5
   }
 
   return Math.min(score, 100)
@@ -143,9 +145,12 @@ function calculateReputationScore(reviews: VendorData['externalReviews']): numbe
   const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
   const ratingScore = (avgRating / 5) * 100
 
-  // Sentiment analysis
-  const positiveCount = reviews.filter(r => r.sentiment === 'positive').length
-  const sentimentScore = (positiveCount / reviews.length) * 100
+  // Sentiment analysis (handle null sentiments)
+  const reviewsWithSentiment = reviews.filter(r => r.sentiment !== null)
+  if (reviewsWithSentiment.length === 0) return ratingScore
+  
+  const positiveCount = reviewsWithSentiment.filter(r => r.sentiment === 'positive').length
+  const sentimentScore = (positiveCount / reviewsWithSentiment.length) * 100
 
   return ratingScore * 0.6 + sentimentScore * 0.4
 }
@@ -170,12 +175,13 @@ function calculateRiskScore(risks: VendorData['risks']): number {
 export function calculateSimilarityScore(requirement: string, vendor: any): number {
   // Simple keyword-based similarity (in production, use embeddings)
   const reqWords = requirement.toLowerCase().split(/\s+/)
+  const features = vendor.features?.[0] || {}
   const vendorText = `
     ${vendor.name} 
     ${vendor.description || ''} 
-    ${vendor.features?.services?.join(' ') || ''} 
-    ${vendor.features?.technologies?.join(' ') || ''}
-    ${vendor.features?.expertiseAreas?.join(' ') || ''}
+    ${features.services?.join(' ') || ''} 
+    ${features.technologies?.join(' ') || ''}
+    ${features.expertiseAreas?.join(' ') || ''}
   `.toLowerCase()
 
   const matchCount = reqWords.filter(word => vendorText.includes(word)).length
